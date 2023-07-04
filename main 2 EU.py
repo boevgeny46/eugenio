@@ -107,8 +107,9 @@ import random as r
 
 from PIL import Image
 from PIL import ImageDraw
-from PIL import ImageFilter
-
+from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
 
 
 # блок констант
@@ -124,8 +125,6 @@ RW = 50
 RN = 50
 required_height = 100
 ratio = W/H
-original = original.convert('RGB')
-blurdox = original.filter(ImageFilter.BoxBlur(20))
 original = Image.open('python.png')
 resized = original.resize((int(required_height*ratio),required_height))
 resized.save('resized.png')
@@ -137,7 +136,7 @@ for x in range(W):
         r, g, b = pixels[x,y]
         pixels[x,y] = g, b, r
         original.save(' inverted.png')
-
+        
 
 
 TEXT= 'PYTHON'
@@ -164,7 +163,6 @@ draw.line((0, 0, W, H ), fill = YELLOW, width=5)
 canvas.save('image.png',  'PNG')
 
 
-gggggggg
 
 
 
