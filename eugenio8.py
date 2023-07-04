@@ -33,3 +33,6 @@ data = result['main']
 print(f'temperature: {data["temp"]: .1f}\xB0C')
 print(result['sys'])
 print (f'координаты: {result["coord"] ["lon"]}, {result["coord"] ["lat"]}')  # программа работает
+
+
+# json
