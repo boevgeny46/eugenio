@@ -163,6 +163,7 @@ draw.line((0, 0, W, H ), fill = YELLOW, width=5)
 canvas.save('image.png',  'PNG')
 
 
+fffff
 
 
 
