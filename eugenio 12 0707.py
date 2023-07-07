@@ -33,9 +33,8 @@ userid INT PRIMARY KEY, fname TEXT, lname TEXT, gender TEXT);""")
 
 cursor.execute("""CREATE TABLE IF NOT EXISTS orders(
 orderid INT PRIMARY KEY, date TEXT, userid INT, total INT);""")
-#
-# cursor.execute("""INSERT INTO users(
-# userid, fname,lname, gender)VALUES(1,'Alex,'Smith', 'male')""")
+
+cursor.execute("""INSERT INTO users(userid, fname, lname, gender)VALUES(1,'Alex','Smith','male')""")
 
 
 
