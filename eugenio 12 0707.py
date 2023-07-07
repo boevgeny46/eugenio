@@ -18,3 +18,4 @@ for item in result:
 connection.close()
 
 # программа работает
+#   rrr
