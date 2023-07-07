@@ -30,9 +30,9 @@ connection = sqlite3.connect('shop.sqlite')
 cursor = connection.cursor()
 cursor.execute("""CREATE TABLE IF NOT EXISTS users(
 userid INT PRIMARY KEY, fname TEXT, lname TEXT, gender TEXT);""")
-#
-# cursor.execute("""CREATE TABLE IF NOT EXISTS orders(
-# orderid INT PRIMARY KEY, date TEXT, userid INT, total INT);""")
+
+cursor.execute("""CREATE TABLE IF NOT EXISTS orders(
+orderid INT PRIMARY KEY, date TEXT, userid INT, total INT);""")
 #
 # cursor.execute("""INSERT INTO users(
 # userid, fname,lname, gender)VALUES(1,'Alex,'Smith', 'male')""")
