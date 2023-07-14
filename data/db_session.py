@@ -1,4 +1,4 @@
-# db_session.py - создание базы данных и сессии по работе с ней
+# db_session.py 14 07 23 15 00- создание базы данных и сессии по работе с ней
 import sqlalchemy as sa
 import sqlalchemy.orm as orm
 from sqlalchemy.orm import Session
