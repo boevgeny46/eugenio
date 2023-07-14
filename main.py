@@ -1,181 +1,256 @@
-import random as r
+# https://github.com/ipapMaster/flaskLessons
+import datetime
+
+import requests
+from flask import Flask, request, redirect
+from flask import render_template, make_response, session
+from flask_login import LoginManager, login_user, login_required
+from flask_login import logout_user, current_user
+
+from data import db_session
+from data.news import News
+from data.users import User
+from forms.add_news import NewsForm
+from forms.user import RegisterForm
+from loginform import LoginForm
+from mail_sender import send_mail
+
+app = Flask(__name__)
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+app.config['SECRET_KEY'] = 'too short key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db/news.sqlite'
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=365)  # год
 
 
-# r_string = 'dddbhhgffeefef45'
-# lst = list(r_string) # строку превращаем в список
-# r.shuffle(lst) # замешиваем наш список
-# temp = lst[:8]  # забираем из списка 8 значений
-# print(lst)
-# if '@' in temp: # смотрим, есть ли такие знаки в списке
-#      print(*temp, sep='')   # программа выбор случайного пароля работает
-# else:
-#      temp.append('@')
-#      print(*temp, sep='')
-
-# a={1,2,3,4}
-# b={2,3,5,7,11}
-#
-# string = 'телевидение'
-# st= set(string)
-# print(*st,sep='-') # sep - команда,которая задает вид пробела в списке
-# print(a.union(b)) # обьединение множеств
-# print(a.intersection(b)) # пересечение - ищет одинаковые
-# print(a.difference(b)) # разность - ищет разные значения в списках
-# print(a.symmetric_difference(b)) # симметричная разность элементы входящие и в а и в б
-
-# a = 1.1 # это оформление кортежа
+@login_manager.user_loader
+def load_user(user_id):
+    db_sess = db_session.create_session()
+    return db_sess.query(User).get(user_id)
 
 
-# lst={2,3,5,7,11}
-#
-# # for i,v in enumerate(lst):
-# #      print('индекс', i, 'значение',v ) # работает программа присвоения индекса элементам
-#
-# d = {'Дмитриев': 'плотник',               # словарь, обращение по ключу
-#      'Иванов': 'программист',
-#      'Hetrov': 'удожник' }
-# print(d['Иванов'])                         # аботает
-#
-# d['Никитин'] = 'Сисадмин'
-# print(d['Никитин'])
-# for k, v in  d.items():     # для каждого элемента в списке-словаре d
-
-  #   print(k, '->', v)
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect('/')
 
 
-
-# source = 'город рим'  # задача - превратить в миргород, а потом в дорог город миргород
-# lst =source.split()
-# print(lst)
-# print(lst[0][::-1] +lst[0]) # программа напечала миргород
-# print(lst[1][::-1] +lst[0])
-# x1=(lst[0][::-1] +lst[0])
-# x2=(lst[1][::-1] +lst[0])
-# name = x1+x2
-# print(name)  # работает
+# ошибка 404
+@app.errorhandler(404)
+def http_404_error(error):
+    return redirect('/error404')
 
 
+@app.route('/error404')
+def well():  # колодец
+    return render_template('well.html')
 
 
+@app.errorhandler(401)
+def http_401_handler(error):
+    return redirect('/login')
 
 
-# phone ='+7-812-345-67-89'
-#
-# print ('исходная строка :' , phone)   # исходная строка : +7-812-345-67-89
-# spacedphone = phone.replace('-','')
-# print (spacedphone)  # с пом replace заменили пробелы в номере на без пробелов +78123456789
-# temp = phone.replace('-','(', 1)
-# print(temp)
-#
-# ku = 'тиливизор'
-# b = ku.replace('и','е', 2)
-#  print(b)
+@app.route('/')
+@app.route('/index')
+def index():
+    # работу с БД начинаем с открытия сессии
+    db_sess = db_session.create_session()
+    if current_user.is_authenticated:
+        news = db_sess.query(News).filter(
+            (News.user == current_user) | (News.is_private != True))
+    else:
+        news = db_sess.query(News).filter(News.is_private != True)
+    return render_template('index.html',
+                           title='Новости',
+                           news=news)
 
 
+@app.route('/odd_even')
+def odd_even():
+    return render_template('odd_even.html', number=3)
 
 
+@app.route('/news', methods=['GET', 'POST'])
+@login_required
+def add_news():
+    form = NewsForm()
+    if form.validate_on_submit():
+        db_sess = db_session.create_session()
+        news = News()  # ORM-модель News
+        news.title = form.title.data
+        news.content = form.content.data
+        news.is_private = form.is_private.data
+        current_user.news.append(news)
+        db_sess.merge(current_user)  # слияние сессии с текущим пользователем
+        db_sess.commit()
+        return redirect('/')
+    return render_template('news.html', title='Добавление новости',
+                           form=form)
 
 
-
-# name = 'victor'
-# age = 99
-#
-#
-#
-# height = 180
-#
-#
-#  # вариант с форматированной строкой
-# f_string = f'Имя:{name},возраст: {age} лет, рост: {height},cm'
-# print(f_string)  #  Имя:victor,возраст: 99 лет, рост: 180
-#
-#
-#
-#
-# # списочные выражения записываются прямо а квадратные скобки
-# a= [i for i in range(101) if i % 10 == 5]
-# print(a)   # [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]
+@app.route('/vartest')
+def vartest():
+    return render_template('var_test.html', title='Переменные в HTML')
 
 
+@app.route('/slogan')
+def slogan():
+    return 'Ибо крепка, как смерть, любовь!<br><a href="/">Назад</a>'
 
 
+@app.route('/success')
+def success():
+    return 'Success'
 
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegisterForm()
+    if form.validate_on_submit():
+        if form.password.data != form.password_again.data:
+            return render_template('register.html',
+                                   title='Проблемы с регистрацией',
+                                   message='Пароли не совпадают',
+                                   form=form)
+        db_sess = db_session.create_session()
+        if db_sess.query(User).filter(User.email == form.email.data).first():
+            return render_template('register.html',
+                                   title='Проблемы с регистрацией',
+                                   message='Такой пользователь уже есть',
+                                   form=form)
+        user = User(name=form.name.data,
+                    email=form.email.data,
+                    about=form.about.data)
+        user.set_password(form.password.data)
+        db_sess.add(user)
+        db_sess.commit()
+        return redirect('/login')
+    return render_template('register.html', title='Регистрация', form=form)
 
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        db_sess = db_session.create_session()
+        user = db_sess.query(User).filter(User.email == form.email.data).first()
+        if user and user.check_password(form.password.data):
+            login_user(user, remember=form.remember_me.data)
+            return redirect('/')
+        return render_template('login.html', title='Повторная авторизация',
+                               message='Неверный логин или пароль',
+                               form=form)
+    return render_template('login.html',
+                           title='Авторизация',
+                           form=form)
 
 
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFilter
+@app.route('/weather_form', methods=['GET', 'POST'])
+def weather_form():
+    if request.method == 'GET':
+        return render_template('weather_form.html',
+                               title='Выбор города')
+    elif request.method == 'POST':
+        town = request.form.get('town')
+        if not town.strip():
+            town = 'Москва'
+        data = {}
+        key = 'c747bf84924be997ff13ac5034fa3f86'
+        url = 'http://api.openweathermap.org/data/2.5/weather'
+        params = {'APPID': key, 'q': town, 'units': 'metric'}
+        result = requests.get(url, params=params)
+        weather = result.json()
+        code = weather['cod']
+        icon = weather['weather'][0]['icon']
+        temperature = weather['main']['temp']
+        data['code'] = code
+        data['icon'] = icon
+        data['temp'] = temperature
+        return render_template('weather.html',
+                               title=f'Погода в городе {town}',
+                               town=town, data=data)
 
 
-
-# блок констант
-YELLOW = (255,255, 0)
-BLACK = (0,0,0)
-RED = (255,0,0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-WHITE = (255,255,255)
-
-W,H = (10,10) # скобки здесь не обязательны
-RW = 50
-RN = 50
-required_height = 100
-ratio = W/H
-original = original.convert('RGB')
-blurdox = original.filter(ImageFilter.BoxBlur(20))
-original = Image.open('python.png')
-resized = original.resize((int(required_height*ratio),required_height))
-resized.save('resized.png')
-cropped_image = original.crop((300, 0, 600, 200))
-cropped_image.save('cropped.png')
-pixels = original.load()
-for x in range(W):
-    for y in range(H):
-        r, g, b = pixels[x,y]
-        pixels[x,y] = g, b, r
-        original.save(' inverted.png')
+@app.route('/form_sample', methods=['GET', 'POST'])
+def form_sample():
+    if request.method == 'GET':
+        return render_template('user_form.html', title='Форма')
+    elif request.method == 'POST':
+        f = request.files['file']  # request.form.get('file')
+        f.save('./static/images/loaded.png')
+        myform = request.form.to_dict()
+        return render_template('filled_form.html',
+                               title='Ваши данные',
+                               data=myform)
 
 
-
-TEXT= 'PYTHON'
-canvas = Image.new("RGB", (W, H), BLACK) # СТРОКА, СОЗДАЮШАЯ ФОН
-draw = ImageDraw.Draw(canvas)
-
-draw.text((10,10,), TEXT)
-draw.polygon((W//2, 0,0, H,W,H), fill = WHITE, outline=YELLOW)
-draw.arc(xy=(50,25,175,200 ), start=0, end=360, fill=BLUE, width=10)
-draw.rectangle((0,0,50,50), fill=RED)
-draw.rectangle((75,75,125,125), fill=GREEN)  # зеленый квадрат  (x,y,W,H) - вводим координаты
-draw.rectangle((0,0,50,50), fill=BLUE)
-
-
-draw.line((0, 50, W, H ), fill = YELLOW, width=5)
-canvas.save('image.png',  'PNG')
-
-
- # ВСТРОИЛИ 3 ШАРА
-draw.ellipse((0,0,50,50), fill=RED)
-draw.ellipse((75,75,125,125), fill=BLUE)
-draw.ellipse((150,150,200,200), fill=YELLOW)
-draw.line((0, 0, W, H ), fill = YELLOW, width=5)
-canvas.save('image.png',  'PNG')
+@app.route('/load_photo', methods=['GET', 'POST'])
+def load_photo():
+    if request.method == 'GET':
+        return f"""
+        <form class="login_form" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="photo">Приложите фото:</label>
+                <input type="file" class="from-control-file" id="photo" name="file">
+            </div><br>
+            <button type="submit" class="btn btn-primary">Отправить</button>
+        </form>
+        """
+    elif request.method == 'POST':
+        f = request.files['file']  # request.form.get('file')
+        f.save('./static/images/loaded.png')
+        return '<h1>Файл у Вас на сервере</h1>'
 
 
-gggggggg
+@app.route('/cookie_test')
+def cookie_test():
+    visit_count = int(request.cookies.get('visit_count', 0))
+    if visit_count != 0 and visit_count <= 20:
+        res = make_response(f'Были уже {visit_count + 1} раз')
+        res.set_cookie('visit_count',
+                       str(visit_count + 1),
+                       max_age=60 * 60 * 24 * 365 * 2)
+    elif visit_count > 20:
+        print('Мы тут')
+        res = make_response(f'Были уже {visit_count + 1} раз')
+        res.set_cookie('visit_count', '1', max_age=0)
+    else:
+        res = make_response('Вы впервые здесь за 2 года')
+        res.set_cookie('visit_count', '1',
+                       max_age=60 * 60 * 24 * 365 * 2)
+    return res
 
 
+# Let's Encrypt
+@app.route('/session_test')
+def session_test():
+    visit_count = session.get('visit_count', 0)
+    session['visit_count'] = visit_count + 1
+    if session['visit_count'] > 3:
+        session.pop('visit_count', None)
+    session.permanent = True  # Максимум 31 день
+    return make_response(f'Мы тут были уже {visit_count + 1} раз.')
 
 
+@app.route('/mail', methods=['GET'])
+def get_form():
+    return render_template('mail_send.html')
 
 
+@app.route('/mail', methods=['POST'])
+def post_form():
+    email = request.values.get('email')
+    if send_mail(email, 'Вам письмо', 'Текст письма'):
+        return f'Письмо на адрес {email} отправлено успешно!'
+    return 'Сбой при отправке'
 
 
-
-
-
+if __name__ == '__main__':
+    db_session.global_init('db/news.sqlite')
+    app.run(host='127.0.0.1', port=5000, debug=True)
 
 
 
